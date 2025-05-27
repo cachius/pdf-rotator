@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF Rotator</title>
+  <script type="module">
+    import { PDFDocument, degrees } from 'https://cdn.skypack.dev/pdf-lib';
+
+    let loadedPdfBytes = null;
+
+    // File loading via input or drop
+    async function loadPdf(file) {
+      loadedPdfBytes = await file.arrayBuffer();
+      document.getElementById('controls').style.display = 'block';
+      document.getElementById('hint').textContent = 'PDF loaded. Choose a rotation below.';
+    }
+
+    // Rotation handler
+    async function rotatePdf(angle) {
+      if (!loadedPdfBytes) return;
+
+      const pdfDoc = await PDFDocument.load(loadedPdfBytes);
+      const pages = pdfDoc.getPages();
+
+      pages.forEach(page => {
+        const currentRotation = page.getRotation().angle;
+        page.setRotation(degrees((currentRotation + angle + 360) % 360));
+      });
+
+      const rotatedPdfBytes = await pdfDoc.save();
+      const blob = new Blob([rotatedPdfBytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Open in new tab
+      window.open(blobUrl, '_blank');
+
+      document.getElementById('hint').textContent = 'Rotated PDF opened in new tab. Use Ctrl+S or File → Save As to save it.';
+    }
+
+    // Drag & drop handlers
+    window.addEventListener('DOMContentLoaded', () => {
+      const dropArea = document.getElementById('drop-area');
+      const fileInput = document.getElementById('file-input');
+
+      dropArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropArea.classList.add('highlight');
+      });
+
+      dropArea.addEventListener('dragleave', () => {
+        dropArea.classList.remove('highlight');
+      });
+
+      dropArea.addEventListener('drop', e => {
+        e.preventDefault();
+        dropArea.classList.remove('highlight');
+        if (e.dataTransfer.files.length > 0) loadPdf(e.dataTransfer.files[0]);
+      });
+
+      fileInput.addEventListener('change', e => {
+        if (e.target.files.length > 0) loadPdf(e.target.files[0]);
+      });
+
+      // Rotation buttons
+      document.getElementById('rotate-90').onclick = () => rotatePdf(90);
+      document.getElementById('rotate--90').onclick = () => rotatePdf(-90);
+      document.getElementById('rotate-180').onclick = () => rotatePdf(180);
+    });
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+      text-align: center;
+    }
+    #drop-area {
+      border: 2px dashed #999;
+      padding: 2rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #drop-area.highlight {
+      background-color: #eef;
+    }
+    #controls {
+      display: none;
+      margin: 1rem 0;
+    }
+    button {
+      margin: 0 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+    }
+    #hint {
+      margin-top: 1rem;
+      font-style: italic;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>PDF Rotator</h1>
+  <div id="drop-area" onclick="document.getElementById('file-input').click();">
+    <p>Drag & drop a PDF here, or click to select one</p>
+    <input type="file" id="file-input" accept="application/pdf" style="display:none" />
+  </div>
+
+  <div id="controls">
+    <button id="rotate--90">⟲ Rotate -90°</button>
+    <button id="rotate-180">⟳ Rotate 180°</button>
+    <button id="rotate-90">⟳ Rotate +90°</button>
+  </div>
+
+  <div id="hint">No file loaded.</div>
+</body>
+</html>
